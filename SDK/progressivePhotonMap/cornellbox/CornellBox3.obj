@@ -1,0 +1,16 @@
+mtllib CornellBox.mtl
+
+#
+# object backWall
+#
+
+v  0.0000 548.8000 559.2000
+v  0.0000 0.0000 559.2000
+v  556.0000 0.0000 559.2000
+v  556.0000 548.8000 559.2000
+# 4 vertices
+
+g backWall
+usemtl backWall
+f -4 -3 -2 -1
+

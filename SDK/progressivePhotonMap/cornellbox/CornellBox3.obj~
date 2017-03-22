@@ -1,0 +1,86 @@
+mtllib CornellBox.mtl
+
+#
+# object floor
+#
+
+v  0.0000 0.0000 559.2000
+v  0.0000 0.0000 0.0000
+v  556.0000 0.0000 0.0000
+v  556.0000 0.0000 559.2000
+# 4 vertices
+
+g floor
+usemtl floor
+f -4 -3 -2 -1
+
+#
+# object ceiling
+#
+
+v  0.0000 548.8000 559.2000
+v  0.0000 548.8000 0.0000
+v  556.0000 548.8000 0.0000
+v  556.0000 548.8000 559.2000
+# 4 vertices
+
+g ceiling
+usemtl ceiling
+f -4 -3 -2 -1
+
+#
+# object backWall
+#
+
+v  0.0000 548.8000 559.2000
+v  0.0000 0.0000 559.2000
+v  556.0000 0.0000 559.2000
+v  556.0000 548.8000 559.2000
+# 4 vertices
+
+g backWall
+usemtl backWall
+f -4 -3 -2 -1
+
+#
+# object rightWall
+#
+
+v  0.0000 548.8000 0.0000
+v  0.0000 0.0000 0.0000
+v  0.0000 0.0000 559.2000
+v  0.0000 548.8000 559.2000
+# 4 vertices
+
+g rightWall
+usemtl rightWall
+f -4 -3 -2 -1
+
+#
+# object leftWall
+#
+
+v  556.0000 0.0000 559.2000
+v  556.0000 0.0000 0.0000
+v  556.0000 548.8000 0.0000
+v  556.0000 548.8000 559.2000
+# 4 vertices
+
+g leftWall
+usemtl leftWall
+f -4 -3 -2 -1
+
+#
+# object light
+#
+
+v  343.0000 548.0000 332.0000
+v  343.0000 548.0000 227.0000
+v  210.0000 548.0000 227.0000
+v  210.0000 548.0000 332.0000
+# 4 vertices
+
+g light
+usemtl light
+f -4 -3 -2 -1
+

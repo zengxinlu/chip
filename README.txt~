@@ -1,0 +1,1 @@
+我们修改的程序。在ProgressivePhotonMapping里面。

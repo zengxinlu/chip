@@ -1,0 +1,14 @@
+﻿
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+# Explicit paths specified without -i or -o; assuming --only paths...
+# On branch chip2
+# Your branch is up-to-date with 'origin/chip2'.
+#
+# Changes to be committed:
+#	modified:   opengltool.cpp
+#	modified:   ppm.cpp
+#	modified:   ppm_gather.cu
+#	modified:   ppm_rtpass.cu
+#
+

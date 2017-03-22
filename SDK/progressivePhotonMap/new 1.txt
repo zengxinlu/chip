@@ -1,0 +1,134 @@
+// Jump Flooding Algorithm
+JFV_ERROR JFV_CPU::jfvExecuteJumpFlooding( int & triangleCount ) {
+
+	if (jfvTrianglePointNumber != 3)
+		return JFV_ERROR_NO_TRIANGLE_POINTS;
+	// No seeds will just give us a black screen :P
+	if( jfvSeedSamples.size() < 1 ) {
+		printf( "Please create at least 1 seed.\n" );
+		return JFV_ERROR_NO_SAMPLE_POINTS;
+	}
+
+	//printf( "Executing the Jump Flooding algorithm...\n" );
+
+	// Clear the buffers before we start
+	jfvMallocBuffers();
+
+	std::vector< float2 > SiteVec ;
+    std::vector< int >    SeedVec( jfvBufferWidth * jfvBufferWidth , - 1 ) ;
+    std::vector< uchar3 > RandomColorVec ;
+
+	for( unsigned int i = 0; i < jfvSeedSamples.size(); ++i ) {
+		IntegerPoint& p = jfvSeedSamples[i];
+		int tIndexInBuffer = ( p.y * jfvBufferWidth ) + p.x;
+		if (tIndexInBuffer >= jfvBufferHeight * jfvBufferWidth)
+			return JFV_ERROR_SAMPLE_POINTS_OUTSIDE;
+        SiteVec.push_back( make_float2( p.x + 0.5f , p.y + 0.5f ) ) ;
+        RandomColorVec.push_back( make_uchar3( static_cast< unsigned char >( static_cast< float >( rand() ) / RAND_MAX * 255.0f ) ,
+                                               static_cast< unsigned char >( static_cast< float >( rand() ) / RAND_MAX * 255.0f ) ,
+                                               static_cast< unsigned char >( static_cast< float >( rand() ) / RAND_MAX * 255.0f ) ) ) ;
+	}
+    //
+    size_t SiteSize = jfvSeedSamples.size() * sizeof( float2 ) ;
+
+    float2 * SiteArray = NULL ;
+    cudaMalloc( & SiteArray , SiteSize ) ;
+    cudaMemcpy( SiteArray , & SiteVec[0] , SiteSize , cudaMemcpyHostToDevice ) ;
+
+    //
+    size_t BufferSize = jfvBufferWidth * jfvBufferWidth * sizeof( int ) ;
+
+    int * Ping = NULL , * Pong = NULL ;
+    cudaMalloc( & Ping , BufferSize ) , cudaMemcpy( Ping , & SeedVec[0] , BufferSize , cudaMemcpyHostToDevice ) ;
+    cudaMalloc( & Pong , BufferSize ) , cudaMemcpy( Pong , Ping , BufferSize , cudaMemcpyDeviceToDevice ) ;
+
+    //
+    int * Mutex = NULL ;
+    cudaMalloc( & Mutex , sizeof( int ) ) , cudaMemset( Mutex , - 1 , sizeof( int ) ) ;
+
+    //
+    //
+    cudaDeviceProp CudaDeviceProperty ;
+    cudaGetDeviceProperties( & CudaDeviceProperty , 0 ) ;
+
+    for ( int k = jfvBufferWidth / 2 ; k > 0 ; k = k >> 1 )
+    {
+        vonoi( jfvBufferWidth , jfvBufferWidth , SiteArray , Ping , Pong , k , Mutex) ;
+        cudaDeviceSynchronize() ;
+
+        cudaMemcpy( Ping , Pong , BufferSize , cudaMemcpyDeviceToDevice ) ;
+        std::swap( Ping , Pong ) ;
+    }
+    cudaMemcpy( & SeedVec[0] , Pong , BufferSize , cudaMemcpyDeviceToHost ) ;
+
+    //
+    cudaFree( SiteArray ) ;
+    cudaFree( Ping ) ;
+    cudaFree( Pong ) ;
+    cudaFree( Mutex ) ;
+
+	FILE * Output = fopen( "1.ppm" , "wb" ) ;
+    fprintf( Output , "P6\n%d %d\n255\n" , jfvBufferWidth , jfvBufferWidth ) ;
+
+    std::vector< uchar3 > Pixels( jfvBufferWidth * jfvBufferWidth ) ;
+    for ( int y = 0 ; y < jfvBufferWidth ; ++ y )
+    {
+        for ( int x = 0 ; x < jfvBufferWidth ; ++ x )
+        {
+            const int Seed = SeedVec[x + y * jfvBufferWidth] ;
+			
+			
+            if ( Seed != - 1 )
+            {
+				if (jfvIsInTriangle(x, y))
+				{
+					int idx = y * jfvBufferWidth + x;
+					jfvSamplesArea[Seed] ++;
+					triangleCount ++;
+				}
+                Pixels[x + y * jfvBufferWidth] = RandomColorVec[Seed] ;
+            }
+        }
+    }
+
+    for( std::vector< float2 >::const_iterator itr = SiteVec.begin() ; itr != SiteVec.end() ; ++ itr )
+    {
+        const int x = static_cast< int >( floorf( itr->x ) ) ;
+        const int y = static_cast< int >( floorf( itr->y ) ) ;
+        Pixels[x + y * jfvBufferWidth] = make_uchar3( 255 , 0 , 0 ) ;
+    }
+
+    fwrite( & Pixels[0].x , 3 , Pixels.size() , Output ) ;
+    fclose( Output ) ;
+
+
+
+	return JFV_NO_ERROR;
+}
+
+// 记录每个光子采样点的采样面积
+void JFV_CPU::jfvCountArea(float totalArea, int triangleCount)
+{
+	int sampleSize = jfvSeedSamples.size();
+	jfvSamplesArea.clear();
+	for (int i = 0;i < sampleSize;i ++)
+		jfvSamplesArea.push_back(0);
+
+	// 如果仅包含一个光子，返回整个三角形面积
+	if (sampleSize == 1)
+	{
+		jfvSamplesArea[0] = totalArea;
+		return;
+	}
+	if (triangleCount > 0)
+	{
+		for (int i = 0;i < sampleSize;i ++)
+		{
+			jfvSamplesArea[i] *= (totalArea/triangleCount);
+			if (jfvSamplesArea[i] == 0)
+			{
+				assert(1);
+			}
+		}
+	}
+}
