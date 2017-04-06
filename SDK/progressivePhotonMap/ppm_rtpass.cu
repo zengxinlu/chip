@@ -42,7 +42,7 @@ rtDeclareVariable(PPMLight,      light , , );
 //
 rtBuffer<float3, 2>              direct_buffer;						//直接光照
 rtBuffer<HitRecord, 2>           rtpass_output_buffer;				//光线追综的光子图
-rtBuffer<uint2, 2>               image_rnd_seeds;					//随机种子
+rtBuffer<uint3, 2>               image_rnd_seeds;					//随机种子
 rtBuffer<float, 2>               primary_edge_buffer;
 rtBuffer<float, 2>               secondary_edge_buffer;
 rtBuffer<int4, 2>                sp_triangle_info_buffer;
@@ -93,7 +93,7 @@ RT_PROGRAM void rtpass_camera()
 {
 	float2 screen = make_float2( rtpass_output_buffer.size() );
 	
-	uint2   seed   = image_rnd_seeds[launch_index];                       // If we start writing into this buffer here we will
+	uint3   seed   = image_rnd_seeds[launch_index];                       // If we start writing into this buffer here we will
 	float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );				// need to make it an INPUT_OUTPUT buffer.  For now it
 	image_rnd_seeds[launch_index] = seed;                                // is just INPUT
 	
@@ -260,7 +260,7 @@ RT_PROGRAM void rtpass_closest_hit()
 		{
 			for (float my_j = 0.0f; my_j < max_sample_num; my_j ++)
 			{
-				uint2  seed   = image_rnd_seeds[launch_index];
+				uint3  seed   = image_rnd_seeds[launch_index];
 				float2 sample = make_float2( rnd( seed.x ), rnd( seed.y ) ); 
 				image_rnd_seeds[launch_index] = seed;
 				// Direct light
@@ -367,7 +367,7 @@ RT_PROGRAM void rtpass_closest_hit()
 		{
 			for (float my_j = 0.0f; my_j < max_sample_num; my_j ++)
 			{
-				uint2   seed   = image_rnd_seeds[launch_index];                       // If we start writing into this buffer here we will
+				uint3   seed   = image_rnd_seeds[launch_index];                       // If we start writing into this buffer here we will
 				float2 sample = make_float2( rnd(seed.x), rnd(seed.y) );      // need to make it an INPUT_OUTPUT buffer.  For now it
 				image_rnd_seeds[launch_index] = seed;                                // is just INPUT
 
