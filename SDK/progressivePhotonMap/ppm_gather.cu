@@ -50,7 +50,7 @@ rtBuffer<int>					 sp_valid_buffer;
 rtDeclareVariable(float, max_radius2, , );
 rtBuffer<PackedPhotonRecord, 1>  Global_Photon_Map;
 rtBuffer<PackedHitRecord, 2>     rtpass_output_buffer;
-rtBuffer<uint2, 2>               image_rnd_seeds;
+rtBuffer<uint3, 2>               image_rnd_seeds;
 rtDeclareVariable(float,         rtpass_default_radius2, , );
 rtDeclareVariable(float,         scene_epsilon, , );
 rtDeclareVariable(float,         alpha, , );
@@ -297,8 +297,10 @@ RT_PROGRAM void globalDensity()
 		else chip2[i] = true;
 	}
 	
+	image_rnd_seeds[launch_index].z = 0;
 	if (!chip2[4])
 	{
+		image_rnd_seeds[launch_index].z = 1;
 		for (int i = 4; i >= 0; --i)
 			if (chip2[i])
 			{

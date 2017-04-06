@@ -1222,11 +1222,15 @@ void ProgressivePhotonScene::initEnterPointRayTrace(InitialCameraData& camera_da
 	m_context["rtpass_bg_color"]->setFloat( make_float3( 0.34f, 0.55f, 0.85f ) );
 
 	/// RTPass pixel sample buffers
-	Buffer image_rnd_seeds = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_UNSIGNED_INT2, WIDTH, HEIGHT );
+	Buffer image_rnd_seeds = m_context->createBuffer( RT_BUFFER_INPUT_OUTPUT | RT_BUFFER_GPU_LOCAL, RT_FORMAT_UNSIGNED_INT3, WIDTH, HEIGHT );
 	m_context["image_rnd_seeds"]->set( image_rnd_seeds );
-	uint2* seeds = reinterpret_cast<uint2*>( image_rnd_seeds->map() );
+	uint3* seeds = reinterpret_cast<uint3*>( image_rnd_seeds->map() );
 	for ( unsigned int i = 0; i < WIDTH*HEIGHT; ++i )  
-		seeds[i] = random2u();
+	{
+		seeds[i].x = random1u();
+		seeds[i].y = random1u();
+		seeds[i].z = 0;
+	}
 	image_rnd_seeds->unmap();
 
 	/// Set up camera
@@ -2362,9 +2366,13 @@ void ProgressivePhotonScene::doResize( unsigned int width, unsigned int height )
 	}
 
 	Buffer image_rnd_seeds = m_context["image_rnd_seeds"]->getBuffer();
-	uint2* seeds = reinterpret_cast<uint2*>( image_rnd_seeds->map() );
-	for ( unsigned int i = 0; i < width*height; ++i )  
-		seeds[i] = random2u();
+	uint3* seeds = reinterpret_cast<uint3*>( image_rnd_seeds->map() );
+	for ( unsigned int i = 0; i < width*height; ++i )
+	if (seeds[i].z)
+	{
+		seeds[i].x = random1u();
+		seeds[i].y = random1u();
+	}
 	image_rnd_seeds->unmap();
 }
 
