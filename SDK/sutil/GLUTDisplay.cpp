@@ -46,9 +46,14 @@
 // #define NVTX_ENABLE enables the nvToolsExt stuff from Nsight in NsightHelper.h
 //#define NVTX_ENABLE
 
+#ifdef ENABLE_OVR_PLUGIN
+#define __stdint_h__
+#include <OVR\Extras\OVR_Math.h>
+#endif
 #include <NsightHelper.h>
 
 using namespace optix;
+
 
 //-----------------------------------------------------------------------------
 // 
@@ -109,6 +114,12 @@ double         GLUTDisplay::m_start_time           = 0.0;
 int            GLUTDisplay::m_num_devices          = 0;
 
 bool           GLUTDisplay::m_enable_cpu_rendering = false;
+
+#ifdef ENABLE_OVR_PLUGIN
+OvrPluginGL    GLUTDisplay::m_ovr_plugin;
+
+int            GLUTDisplay::m_cur_eye              = 0;
+#endif
 
 inline void removeArg( int& i, int& argc, char** argv ) 
 {
@@ -292,10 +303,10 @@ void GLUTDisplay::run( const std::string& title, SampleScene* scene, contDraw_E 
 
 	// Initialize GLUT and GLEW first. Now initScene can use OpenGL and GLEW.
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
-	if( m_initial_window_width > 0 && m_initial_window_height > 0)
-		glutInitWindowSize( m_initial_window_width, m_initial_window_height );
+	if (m_initial_window_width > 0 && m_initial_window_height > 0)
+		glutInitWindowSize(m_initial_window_width, m_initial_window_height);
 	else
-		glutInitWindowSize( 128, 128 );
+		glutInitWindowSize(128, 128);
 	glutInitWindowPosition(100,100);
 	glutCreateWindow( m_title.c_str() );
 	glutHideWindow();
@@ -361,6 +372,15 @@ void GLUTDisplay::run( const std::string& title, SampleScene* scene, contDraw_E 
 
 	// reshape window to the correct window resize
 	glutReshapeWindow( buffer_width, buffer_height);
+#ifdef ENABLE_OVR_PLUGIN
+	// OVR PLUGIN INITIALIZATION
+	int OVR_init_width = buffer_width, OVR_init_height = buffer_height;
+	if (!m_ovr_plugin.Init(OVR_init_width, OVR_init_height))
+	{
+		std::cerr << "OVR INIT FAILED" << std::endl;
+		m_ovr_plugin.shouldQuit = true;
+	}
+#endif
 
 	// Set callbacks
 	glutKeyboardFunc(keyPressed);
@@ -771,12 +791,15 @@ void GLUTDisplay::displayFrame()
 		}
 		glBindBuffer( GL_PIXEL_UNPACK_BUFFER, 0 );
 
+#ifdef ENABLE_OVR_PLUGIN
+		if (!m_ovr_plugin.shouldQuit) m_ovr_plugin.StartRender(m_cur_eye);
+#endif
 		glEnable(GL_TEXTURE_2D);
 
 		// Initialize offsets to pixel center sampling.
 
-		float u = 0.5f/buffer_width;
-		float v = 0.5f/buffer_height;
+		float u = 0.5f / buffer_width;
+		float v = 0.5f / buffer_height;
 
 		glBegin(GL_QUADS);
 		glTexCoord2f(u, v);
@@ -790,6 +813,15 @@ void GLUTDisplay::displayFrame()
 		glEnd();
 
 		glDisable(GL_TEXTURE_2D);
+#ifdef ENABLE_OVR_PLUGIN
+		if (!m_ovr_plugin.shouldQuit)
+		{
+			m_ovr_plugin.EndRender(m_cur_eye);
+			m_cur_eye ^= 1; // 0->1 OR 1->0
+			m_ovr_plugin.PseudoRender(m_cur_eye);
+			//if (m_cur_eye == 0) Sleep(1000);
+		}
+#endif
 	} else {
 		GLvoid* imageData = buffer->map();
 		assert( imageData );
@@ -845,6 +877,9 @@ void GLUTDisplay::displayFrame()
 
 void GLUTDisplay::display()
 {
+#ifdef ENABLE_OVR_PLUGIN
+	if (!m_ovr_plugin.shouldQuit) m_ovr_plugin.BeforeRender();
+#endif
 	if(m_cur_continuous_mode == CDProgressive && m_progressive_timeout > 0.0 ) {
 		// If doing progressive refinement, see if we're done
 		double current_time;
@@ -858,7 +893,33 @@ void GLUTDisplay::display()
 	try {
 		// render the scene
 		float3 eye, U, V, W;
+#ifdef ENABLE_OVR_PLUGIN
+		OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(-0.24178f, -0.133496f, 2.43055f);
+		//fprintf(stderr, "eye:%f,%f,%f\n", ovr_eye.x, ovr_eye.y, ovr_eye.z);
+		ovr_eye -= (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) / 2;
+		//ovr_eye += (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) - OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) * 0.5;
+		OVR::Matrix4f finalRollPitchYaw = OVR::Matrix4f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Orientation);
+		OVR::Vector3f finalUp = finalRollPitchYaw.Transform(OVR::Vector3f(0, 1, 0));
+		OVR::Vector3f finalForward = finalRollPitchYaw.Transform(OVR::Vector3f(0, 0, -1));
+		OVR::Vector3f finalRight = finalRollPitchYaw.Transform(OVR::Vector3f(1, 0, 0));
+
+		memcpy(&eye, &ovr_eye, sizeof(float3));
+		memcpy(&U, &finalRight, sizeof(float3));
+		memcpy(&V, &finalUp, sizeof(float3));
+		memcpy(&W, &finalForward, sizeof(float3));
+
+		float3 leye, lU, lV, lW;
+		m_camera->getEyeUVW(leye, lU, lV, lW);
+		U *= length(lU);
+		V *= length(lV);
+		W *= length(lW);
+
+		m_scene->signalCameraChanged();
+
+		
+#else
 		m_camera->getEyeUVW( eye, U, V, W );
+#endif
 		// Don't be tempted to just start filling in the values outside of a constructor, 
 		// because if you add a parameter it's easy to forget to add it here.
 		SampleScene::RayGenCameraData camera_data( eye, U, V, W );
@@ -966,6 +1027,10 @@ void GLUTDisplay::display()
 		printf("Total Time: %.6lf\n", current_time - m_start_time);
 	}
 
+#ifdef ENABLE_OVR_PLUGIN
+	if (!m_ovr_plugin.shouldQuit) m_ovr_plugin.AfterRender();
+#endif
+
 	{nvtx::ScopedRange r( "glutSwapBuffers" );
 	// Swap buffers
 	glutSwapBuffers();
@@ -984,6 +1049,9 @@ void GLUTDisplay::quit(int return_code)
 				exit(2);
 			}
 		}
+#ifdef ENABLE_OVR_PLUGIN
+		m_ovr_plugin.Shutdown();
+#endif
 		exit(return_code);
 	} catch( Exception& e ) {
 		sutilReportError( e.getErrorString().c_str() );

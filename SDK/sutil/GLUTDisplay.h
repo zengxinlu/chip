@@ -26,6 +26,13 @@
 #include <sutil.h>
 #include <SampleScene.h>
 
+#define ENABLE_OVR_PLUGIN
+#ifdef ENABLE_OVR_PLUGIN
+//#pragma comment(lib, "LibOVR.lib")
+#include <OVR\OvrPlugin.h>
+//#pragma comment(lib, "OvrPlugin.lib")
+#endif
+
 class Mouse;
 class PinholeCamera;
 
@@ -156,4 +163,10 @@ private:
   static int            m_num_devices;
 
   static bool           m_enable_cpu_rendering; // enables CPU execution of OptiX programs
+
+#ifdef ENABLE_OVR_PLUGIN
+  static OvrPluginGL    m_ovr_plugin;
+
+  static int			m_cur_eye;
+#endif
 };
