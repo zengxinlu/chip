@@ -331,17 +331,17 @@ RT_PROGRAM void globalDensity()
 		//direct_flux + indirect_flux + ambient_light*rec_atten_Kd; 
 		//indirect_flux*15.f;// * 5.f;
 		//indirect_flux * 1.f;// * 5.f;
-		//direct_flux + indirect_flux * 7.f; 
+		direct_flux + indirect_flux * 5.f; 
 		//direct_flux * 1.f;
 		//direct_flux * 30.f;
 
 		//direct_flux*5.0f + indirect_flux * 0.2f; // sponza
 
-		//direct_flux*15.0f + indirect_flux * 1.0f; // conference area reduce
+		//direct_flux*5.0f + indirect_flux * 1.0f; // conference area reduce
 		//direct_flux*0.8f + indirect_flux * 0.5f; // conference area light
 		//direct_flux*0.5f + indirect_flux * 1.f; // conference area light
 		//direct_flux*1.f + indirect_flux * 0.5f; // sibnik
-		(direct_flux*1.f + indirect_flux * 30.0f) * 0.25f; // box
+		//(direct_flux*1.f + indirect_flux * 30.0f) * 0.25f; // box
 		//(direct_flux*1.f + indirect_flux * 2.f); // sibnik
 
 		//direct_flux*100.f;

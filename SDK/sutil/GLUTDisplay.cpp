@@ -925,7 +925,7 @@ void GLUTDisplay::display()
 		SampleScene::RayGenCameraData camera_data( eye, U, V, W );
 		if (m_frame_count < m_timed_frames)
 		{nvtx::ScopedRange r( "trace" );
-		m_scene->trace( camera_data );
+		m_scene->trace(camera_data);
 		}
 
 		// Always count rendered frames

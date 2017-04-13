@@ -26,7 +26,7 @@
 #include <sutil.h>
 #include <SampleScene.h>
 
-#define ENABLE_OVR_PLUGIN
+//#define ENABLE_OVR_PLUGIN
 #ifdef ENABLE_OVR_PLUGIN
 //#pragma comment(lib, "LibOVR.lib")
 #include <OVR\OvrPlugin.h>

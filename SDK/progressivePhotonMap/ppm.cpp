@@ -407,10 +407,10 @@ private:
 	string projectName;
 
 };
-const unsigned int ProgressivePhotonScene::WIDTH  = 800u;
-const unsigned int ProgressivePhotonScene::HEIGHT = 600u;
-/// const unsigned int ProgressivePhotonScene::WIDTH  = 400u;
-/// const unsigned int ProgressivePhotonScene::HEIGHT = 300u;
+  const unsigned int ProgressivePhotonScene::WIDTH  = 800u;
+  const unsigned int ProgressivePhotonScene::HEIGHT = 600u;
+//  const unsigned int ProgressivePhotonScene::WIDTH  = 400u;
+//  const unsigned int ProgressivePhotonScene::HEIGHT = 300u;
 /// const unsigned int ProgressivePhotonScene::WIDTH  = 1680u;
 /// const unsigned int ProgressivePhotonScene::HEIGHT = 974u;
 /// const unsigned int ProgressivePhotonScene::WIDTH  = 768u;
@@ -711,7 +711,7 @@ void ProgressivePhotonScene::initWeddingRing(InitialCameraData& camera_data)
 	m_context["rtpass_default_radius2"]->setFloat( default_radius2);
 	m_context["max_radius2"]->setFloat(default_radius2);
 	optix::Aabb aabb;
-	loadObjGeometry( "wedding-band.obj", aabb, false);		
+	loadObjGeometry( "wedding-band/wedding-band.obj", aabb, false);		
 }
 void ProgressivePhotonScene::initCornelBox(InitialCameraData& camera_data)
 {
@@ -1500,7 +1500,7 @@ void ProgressivePhotonScene::buildGlobalPhotonMap()
 {
 	double t0, t1;
 
-	if (m_print_timings) std::cerr << "Starting Global photon pass   ... ";
+	//if (m_print_timings) std::cerr << "Starting Global photon pass   ... ";
 
 	Buffer Globalphoton_rnd_seeds = m_context["Globalphoton_rnd_seeds"]->getBuffer();
 	uint2* seeds = reinterpret_cast<uint2*>( Globalphoton_rnd_seeds->map() );
@@ -1508,7 +1508,7 @@ void ProgressivePhotonScene::buildGlobalPhotonMap()
 		seeds[i] = random2u();
 	Globalphoton_rnd_seeds->unmap();
 
-	sutilCurrentTime( &t0 );
+	/*sutilCurrentTime( &t0 );*/
 	
 	m_context->launch( EnterPointGlobalPass,
 		static_cast<unsigned int>(PHOTON_LAUNCH_WIDTH),
@@ -1520,8 +1520,8 @@ void ProgressivePhotonScene::buildGlobalPhotonMap()
 	/// overlap).
 	m_context["total_emitted"]->setFloat( static_cast<float>((unsigned long long)(m_frame_number+1)*PHOTON_LAUNCH_WIDTH*PHOTON_LAUNCH_HEIGHT) );
 	
-	sutilCurrentTime( &t1 );
-	if (m_print_timings) std::cerr << "finished. " << t1 - t0 << std::endl;
+	/*sutilCurrentTime( &t1 );
+	if (m_print_timings) std::cerr << "finished. " << t1 - t0 << std::endl;*/
 
 
 	PhotonRecord* photons_data    = reinterpret_cast<PhotonRecord*>( m_Global_Photon_Buffer->map() );
@@ -1564,11 +1564,11 @@ void ProgressivePhotonScene::buildGlobalPhotonMap()
 	setPhotonPosition2D(temp_photons, valid_photons);
 	
 	/// Build KD tree 
-	if (m_print_timings) std::cerr << "Starting Global kd_tree build ... " << std::endl;
-	sutilCurrentTime( &t0 );
+	/*if (m_print_timings) std::cerr << "Starting Global kd_tree build ... " << std::endl;
+	sutilCurrentTime( &t0 );*/
 	buildKDTree( temp_photons, 0, valid_photons, 0, photon_map_data, 0, m_split_choice, bbmin, bbmax );
-	sutilCurrentTime( &t1 );
-	if (m_print_timings) std::cerr << "finished. " << t1 - t0 << std::endl;
+	/*sutilCurrentTime( &t1 );
+	if (m_print_timings) std::cerr << "finished. " << t1 - t0 << std::endl;*/
 
 	delete[] temp_photons;
 	m_Global_Photon_Map->unmap();
@@ -2199,16 +2199,69 @@ void ProgressivePhotonScene::regenerate_area(RTsize buffer_width, RTsize buffer_
 
 void ProgressivePhotonScene::trace( const RayGenCameraData& camera_data )
 {
+	//cerr << " eyeyeyeyeye " << camera_data.eye.x << endl;
 	double tstart, tend;
 	sutilCurrentTime(&tstart);
 	double t0, t1;
-	Buffer output_buffer = m_context["rtpass_output_buffer"]->getBuffer();
+
+	/// Change Camera
+	m_frame_number = m_camera_changed ? 0u : m_frame_number + 1;
+	if (m_camera_changed)
+	{
+		m_camera_changed = false;
+		m_context["rtpass_eye"]->setFloat(camera_data.eye);
+		m_context["rtpass_U"]->setFloat(camera_data.U);
+		m_context["rtpass_V"]->setFloat(camera_data.V);
+		m_context["rtpass_W"]->setFloat(camera_data.W);
+	}
+	Buffer output_buffer;
 	RTsize buffer_width, buffer_height;
-	output_buffer->getSize( buffer_width, buffer_height );
+	/// Trace viewing rays
+//	std::cerr.flush();
+	sutilCurrentTime(&t0);
+	double timeStatics[3] = { 0, 0, 0 };
+	for (int iterStep = 0; iterStep < 1; ++iterStep) {
+
+		double tl, tr;
+		output_buffer = m_context["rtpass_output_buffer"]->getBuffer();
+		output_buffer->getSize(buffer_width, buffer_height);
+		m_context["frame_number"]->setFloat(static_cast<float>(m_frame_number++));
+//		if (m_print_timings) std::cerr << "Starting RT pass ... ";
+		sutilCurrentTime(&tl);
+		m_context->launch(EnterPointRayTrace,
+			static_cast<unsigned int>(buffer_width),
+			static_cast<unsigned int>(buffer_height));
+		sutilCurrentTime(&tr);
+		timeStatics[0] += tr - tl;
+
+		/// Trace photons
+		sutilCurrentTime(&tl);
+		buildGlobalPhotonMap();
+		//buildCausticsPhotonMap();
+		sutilCurrentTime(&tr);
+		timeStatics[1] += tr - tl;
+
+		sutilCurrentTime(&tl);
+		m_context->launch(EnterPointGlobalGather,
+			static_cast<unsigned int>(buffer_width),
+			static_cast<unsigned int>(buffer_height));
+		/*m_context->launch( EnterPointCausticsGather,
+		static_cast<unsigned int>(buffer_width),
+		static_cast<unsigned int>(buffer_height) );*/
+		sutilCurrentTime(&tr);
+		timeStatics[2] += tr - tl;
+	}		
+	m_frame_number--;
+	sutilCurrentTime( &t1 );
+	if (m_print_timings) std::cerr << "total " << t1 - t0 << std::endl;
+	if (m_print_timings) {
+		std::cerr << "RTpass cost : " << timeStatics[0] << " second!" << endl;
+		std::cerr << "PPpass cost : " << timeStatics[1] << " second!" << endl;
+		std::cerr << "GApass cost : " << timeStatics[2] << " second!" << endl;
+	}
 
 	if ((m_frame_number % 25 == 0 || m_frame_number <= 40) && m_frame_number > 0)
 		m_print_image = 1;
-
 	/// Print Images
 	if (m_print_image)
 	{
@@ -2218,47 +2271,6 @@ void ProgressivePhotonScene::trace( const RayGenCameraData& camera_data )
 		grab(buffer_width, buffer_height, name1, name2, m_frame_number * (PHOTON_LAUNCH_WIDTH * PHOTON_LAUNCH_HEIGHT / 1024));
 		m_print_image = false;
 	}
-
-	/// Change Camera
-	m_frame_number = m_camera_changed ? 0u : m_frame_number+1;
-	m_context["frame_number"]->setFloat( static_cast<float>(m_frame_number) );
-	if ( m_camera_changed ) 
-	{
-		m_camera_changed = false;
-		m_context["rtpass_eye"]->setFloat( camera_data.eye );
-		m_context["rtpass_U"]->setFloat( camera_data.U );
-		m_context["rtpass_V"]->setFloat( camera_data.V );
-		m_context["rtpass_W"]->setFloat( camera_data.W );
-	}
-
-	/// Trace viewing rays
-	if (m_print_timings) std::cerr << "Starting RT pass ... ";
-//	std::cerr.flush();
-	sutilCurrentTime( &t0 );
-	m_context->launch( EnterPointRayTrace,
-		static_cast<unsigned int>(buffer_width),
-		static_cast<unsigned int>(buffer_height) );
-	sutilCurrentTime( &t1 );
-	if (m_print_timings) std::cerr << "finished. " << t1 - t0 << std::endl;
-
-	/// Trace photons
-	buildGlobalPhotonMap();
-	//buildCausticsPhotonMap();
-
-	/// Shade view rays by gathering photons
-	if (m_print_timings) std::cerr << "Starting gather pass   ... ";
-	sutilCurrentTime( &t0 );
-	
-	m_context->launch( EnterPointGlobalGather,
-		static_cast<unsigned int>(buffer_width),
-		static_cast<unsigned int>(buffer_height) );
-		
-	/*m_context->launch( EnterPointCausticsGather,
-		static_cast<unsigned int>(buffer_width),
-		static_cast<unsigned int>(buffer_height) );*/
-	sutilCurrentTime( &t1 );
-	if (m_print_timings) std::cerr << "finished. " << t1 - t0 << std::endl;
-
 	/// Print Camera
 	if (m_print_camera)
 	{
