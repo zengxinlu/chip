@@ -63,6 +63,10 @@ using namespace optix;
 Mouse*         GLUTDisplay::m_mouse                = 0;
 PinholeCamera* GLUTDisplay::m_camera               = 0;
 SampleScene*   GLUTDisplay::m_scene                = 0;
+#ifdef TWO_SCENE
+SampleScene*   GLUTDisplay::m_scene2               = 0;
+PinholeCamera* GLUTDisplay::m_camera2			   = 0;
+#endif
 
 double         GLUTDisplay::m_last_frame_time      = 0.0;
 unsigned int   GLUTDisplay::m_last_frame_count     = 0;
@@ -404,6 +408,144 @@ void GLUTDisplay::run( const std::string& title, SampleScene* scene, contDraw_E 
 	// Enter main loop
 	glutMainLoop();
 }
+
+#ifdef TWO_SCENE
+void GLUTDisplay::runVR(const std::string& title, SampleScene* leftScene, SampleScene* rightScene, contDraw_E continuous_mode)
+{
+	if (!m_initialized) {
+		std::cerr << "ERROR - GLUTDisplay::run() called before GLUTDisplay::init()" << std::endl;
+		exit(2);
+	}
+	m_scene = leftScene;
+	m_scene2 = rightScene;
+	m_title = title;
+	m_scene->enableCPURendering(m_enable_cpu_rendering);
+	m_scene2->enableCPURendering(m_enable_cpu_rendering);
+	m_scene->setNumDevices(m_num_devices);
+	m_scene2->setNumDevices(m_num_devices);
+
+	if (m_benchmark_no_display) {
+		runBenchmarkNoDisplay();
+		return;
+	}
+
+	if (m_print_mem_usage) {
+		DeviceMemoryLogger::logDeviceDescription(m_scene->getContext(), std::cerr);
+		DeviceMemoryLogger::logCurrentMemoryUsage(m_scene->getContext(), std::cerr, "Initial memory available: ");
+		std::cerr << std::endl;
+	}
+
+	// Initialize GLUT and GLEW first. Now initScene can use OpenGL and GLEW.
+	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+	if (m_initial_window_width > 0 && m_initial_window_height > 0)
+		glutInitWindowSize(m_initial_window_width, m_initial_window_height);
+	else
+		glutInitWindowSize(128, 128);
+	glutInitWindowPosition(100, 100);
+	glutCreateWindow(m_title.c_str());
+	glutHideWindow();
+#if !defined(__APPLE__)
+	glewInit();
+	if (glewIsSupported("GL_EXT_texture_sRGB GL_EXT_framebuffer_sRGB")) {
+		m_sRGB_supported = true;
+	}
+#else
+	m_sRGB_supported = true;
+#endif
+#if defined(_WIN32)
+	// Turn off vertical sync
+	wglSwapIntervalEXT(0);
+#endif
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	// If m_app_continuous_mode was already set to CDBenchmark* on the command line then preserve it.
+	setContinuousMode(m_app_continuous_mode == CDNone ? continuous_mode : m_app_continuous_mode);
+
+	int buffer_width;
+	int buffer_height;
+	try {
+		// Set up scene
+		SampleScene::InitialCameraData camera_data;
+		m_scene->initScene(camera_data);
+		m_scene2->initScene(camera_data);
+  		if (m_initial_window_width > 0 && m_initial_window_height > 0) {
+			m_scene->resize(m_initial_window_width, m_initial_window_height);
+			m_scene2->resize(m_initial_window_width, m_initial_window_height);
+		}
+
+		if (!m_camera_pose.empty())
+			camera_data = SampleScene::InitialCameraData(m_camera_pose);
+
+		// Initialize camera according to scene params
+		m_camera = new PinholeCamera(camera_data.eye,
+			camera_data.lookat,
+			camera_data.up,
+			-1.0f, // hfov is ignored when using keep vertical
+			camera_data.vfov,
+			PinholeCamera::KeepVertical);
+		m_camera2 = new PinholeCamera(camera_data.eye,
+			camera_data.lookat,
+			camera_data.up,
+			-1.0f, // hfov is ignored when using keep vertical
+			camera_data.vfov,
+			PinholeCamera::KeepVertical);
+
+		Buffer buffer = m_scene->getOutputBuffer();
+		RTsize buffer_width_rts, buffer_height_rts;
+		buffer->getSize(buffer_width_rts, buffer_height_rts);
+		buffer_width = static_cast<int>(buffer_width_rts);
+		buffer_height = static_cast<int>(buffer_height_rts);
+		m_mouse = new Mouse(m_camera, buffer_width, buffer_height);
+	}
+	catch (Exception& e) {
+		sutilReportError(e.getErrorString().c_str());
+		exit(2);
+	}
+
+	// Initialize state
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0, 1, 0, 1, -1, 1);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glViewport(0, 0, buffer_width, buffer_height);
+
+	glutShowWindow();
+
+	// reshape window to the correct window resize
+	glutReshapeWindow(buffer_width, buffer_height);
+	// OVR PLUGIN INITIALIZATION
+	int OVR_init_width = buffer_width, OVR_init_height = buffer_height;
+	if (!m_ovr_plugin.Init(OVR_init_width, OVR_init_height))
+	{
+		std::cerr << "OVR INIT FAILED" << std::endl;
+		m_ovr_plugin.shouldQuit = true;
+	}
+
+	// Set callbacks
+	glutKeyboardFunc(keyPressed);
+	glutDisplayFunc(display);
+	glutMouseFunc(mouseButton);
+	glutMotionFunc(mouseMotion);
+	glutReshapeFunc(resize);
+
+	// Initialize timer
+	sutilCurrentTime(&m_last_frame_time);
+	m_frame_count = 0;
+	m_last_frame_count = 0;
+	m_start_time = m_last_frame_time;
+	if (m_cur_continuous_mode == CDBenchmarkTimed) {
+		m_warmup_start = m_last_frame_time;
+		m_warmup_frames = 0;
+		m_timed_frames = 0;
+	}
+	m_benchmark_frame_start = 0;
+
+	// Enter main loop
+	glutMainLoop();
+}
+#endif
 
 void GLUTDisplay::setCamera(SampleScene::InitialCameraData& camera_data)
 {
@@ -817,9 +959,10 @@ void GLUTDisplay::displayFrame()
 		if (!m_ovr_plugin.shouldQuit)
 		{
 			m_ovr_plugin.EndRender(m_cur_eye);
-			m_cur_eye ^= 1; // 0->1 OR 1->0
+#ifndef TWO_SCENE
+			m_cur_eye ^= 1;
 			m_ovr_plugin.PseudoRender(m_cur_eye);
-			//if (m_cur_eye == 0) Sleep(1000);
+#endif
 		}
 #endif
 	} else {
@@ -894,10 +1037,12 @@ void GLUTDisplay::display()
 		// render the scene
 		float3 eye, U, V, W;
 #ifdef ENABLE_OVR_PLUGIN
+		
 		OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(-0.24178f, -0.133496f, 2.43055f);
 		//fprintf(stderr, "eye:%f,%f,%f\n", ovr_eye.x, ovr_eye.y, ovr_eye.z);
 		ovr_eye -= (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) / 2;
 		//ovr_eye += (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) - OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) * 0.5;
+		if (m_cur_eye == 1) ovr_eye.x += 0.5;
 		OVR::Matrix4f finalRollPitchYaw = OVR::Matrix4f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Orientation);
 		OVR::Vector3f finalUp = finalRollPitchYaw.Transform(OVR::Vector3f(0, 1, 0));
 		OVR::Vector3f finalForward = finalRollPitchYaw.Transform(OVR::Vector3f(0, 0, -1));
@@ -913,19 +1058,51 @@ void GLUTDisplay::display()
 		U *= length(lU);
 		V *= length(lV);
 		W *= length(lW);
-
 		m_scene->signalCameraChanged();
 
-		
+#ifdef TWO_SCENE
+		{
+			float3 eye2, U2, V2, W2;
+			m_cur_eye ^= 1;
+			OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(-0.24178f, -0.133496f, 2.43055f);
+			//fprintf(stderr, "eye:%f,%f,%f\n", ovr_eye.x, ovr_eye.y, ovr_eye.z);
+			ovr_eye -= (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) / 2;
+			//ovr_eye += (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) - OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) * 0.5;
+			OVR::Matrix4f finalRollPitchYaw = OVR::Matrix4f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Orientation);
+			OVR::Vector3f finalUp = finalRollPitchYaw.Transform(OVR::Vector3f(0, 1, 0));
+			OVR::Vector3f finalForward = finalRollPitchYaw.Transform(OVR::Vector3f(0, 0, -1));
+			OVR::Vector3f finalRight = finalRollPitchYaw.Transform(OVR::Vector3f(1, 0, 0));
+
+			memcpy(&eye2, &ovr_eye, sizeof(float3));
+			memcpy(&U2, &finalRight, sizeof(float3));
+			memcpy(&V2, &finalUp, sizeof(float3));
+			memcpy(&W2, &finalForward, sizeof(float3));
+
+			float3 Reye, RU, RV, RW;
+			m_camera2->getEyeUVW(Reye, RU, RV, RW);
+			U2 *= length(RU);
+			V2 *= length(RV);
+			W2 *= length(RW);
+
+			m_scene2->signalCameraChanged();
+		}
+#endif
+
 #else
 		m_camera->getEyeUVW( eye, U, V, W );
 #endif
 		// Don't be tempted to just start filling in the values outside of a constructor, 
 		// because if you add a parameter it's easy to forget to add it here.
-		SampleScene::RayGenCameraData camera_data( eye, U, V, W );
+		SampleScene::RayGenCameraData camera_data(eye, U, V, W);
+#ifdef TWO_SCENE
+		SampleScene::RayGenCameraData camera_data2(eye, U, V, W);
+#endif
 		if (m_frame_count < m_timed_frames)
 		{nvtx::ScopedRange r( "trace" );
 		m_scene->trace(camera_data);
+#ifdef TWO_SCENE
+		m_scene2->trace(camera_data);
+#endif
 		}
 
 		// Always count rendered frames
@@ -938,6 +1115,17 @@ void GLUTDisplay::display()
 		if( m_display_frames ) {
 			nvtx::ScopedRange r( "displayFrame" );
 			displayFrame();
+#ifdef TWO_SCENE
+			SampleScene* tmpScene = m_scene;
+			m_scene = m_scene2;
+			m_scene2 = tmpScene;
+
+			displayFrame();
+
+			tmpScene = m_scene;
+			m_scene = m_scene2;
+			m_scene2 = tmpScene;
+#endif
 		}
 	} catch( Exception& e ){
 		sutilReportError( e.getErrorString().c_str() );

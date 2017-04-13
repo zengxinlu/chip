@@ -26,7 +26,9 @@
 #include <sutil.h>
 #include <SampleScene.h>
 
-//#define ENABLE_OVR_PLUGIN
+#define ENABLE_OVR_PLUGIN
+//#define TWO_SCENE
+
 #ifdef ENABLE_OVR_PLUGIN
 //#pragma comment(lib, "LibOVR.lib")
 #include <OVR\OvrPlugin.h>
@@ -49,7 +51,10 @@ public:
   enum contDraw_E { CDNone=0, CDProgressive=1, CDAnimated=2, CDBenchmark=3, CDBenchmarkTimed=4 };
 
   SUTILAPI static void init( int& argc, char** argv );
-  SUTILAPI static void run( const std::string& title, SampleScene* scene, contDraw_E continuous_mode = CDNone );
+  SUTILAPI static void run(const std::string& title, SampleScene* scene, contDraw_E continuous_mode = CDNone);
+#ifdef TWO_SCENE
+  SUTILAPI static void runVR(const std::string& title, SampleScene* leftScene, SampleScene* rightScene, contDraw_E continuous_mode = CDNone);
+#endif
   SUTILAPI static void printUsage();
 
   SUTILAPI static void setTextColor( const optix::float3& c )
@@ -113,6 +118,10 @@ private:
   static Mouse*         m_mouse;
   static PinholeCamera* m_camera;
   static SampleScene*   m_scene;
+#ifdef TWO_SCENE
+  static SampleScene*   m_scene2;
+  static PinholeCamera* m_camera2;
+#endif
 
   static double         m_last_frame_time;
   static unsigned int   m_last_frame_count;

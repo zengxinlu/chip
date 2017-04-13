@@ -2220,7 +2220,7 @@ void ProgressivePhotonScene::trace( const RayGenCameraData& camera_data )
 //	std::cerr.flush();
 	sutilCurrentTime(&t0);
 	double timeStatics[3] = { 0, 0, 0 };
-	for (int iterStep = 0; iterStep < 1; ++iterStep) {
+	for (int iterStep = 0; iterStep < 20; ++iterStep) {
 
 		double tl, tr;
 		output_buffer = m_context["rtpass_output_buffer"]->getBuffer();
@@ -2678,7 +2678,13 @@ int main( int argc, char** argv )
 
 		GLUTDisplay::setProgressiveDrawingTimeout(timeout);
 		GLUTDisplay::setUseSRGB(true);
-		GLUTDisplay::run( "ProgressivePhotonScene", &scene, GLUTDisplay::CDProgressive );
+#ifdef TWO_SCENE
+		ProgressivePhotonScene rightScene;
+		rightScene.setGatherMethod(ProgressivePhotonScene::Triangle_Inside_Method);
+		GLUTDisplay::runVR( "ProgressivePhotonScene", &scene, &rightScene, GLUTDisplay::CDProgressive );
+#else
+		GLUTDisplay::run("ProgressivePhotonScene", &scene, GLUTDisplay::CDProgressive);
+#endif
 	} catch( Exception& e ){
 		sutilReportError( e.getErrorString().c_str() );
 		exit(1);
