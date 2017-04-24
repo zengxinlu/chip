@@ -516,12 +516,14 @@ void GLUTDisplay::runVR(const std::string& title, SampleScene* leftScene, Sample
 	// reshape window to the correct window resize
 	glutReshapeWindow(buffer_width, buffer_height);
 	// OVR PLUGIN INITIALIZATION
+#ifdef ENABLE_OVR_PLUGIN
 	int OVR_init_width = buffer_width, OVR_init_height = buffer_height;
 	if (!m_ovr_plugin.Init(OVR_init_width, OVR_init_height))
 	{
 		std::cerr << "OVR INIT FAILED" << std::endl;
 		m_ovr_plugin.shouldQuit = true;
 	}
+#endif
 
 	// Set callbacks
 	glutKeyboardFunc(keyPressed);
@@ -834,10 +836,16 @@ void GLUTDisplay::resize(int width, int height)
 
 	sutilCurrentTime( &m_start_time );
 	m_scene->signalCameraChanged();
+#ifdef TWO_SCENE
+	m_scene2->signalCameraChanged();
+#endif
 	m_mouse->handleResize( width, height );
 
 	try {
 		m_scene->resize(width, height);
+#ifdef TWO_SCENE
+		m_scene2->resize(width, height);
+#endif
 	} catch( Exception& e ){
 		sutilReportError( e.getErrorString().c_str() );
 		exit(2);
@@ -959,8 +967,8 @@ void GLUTDisplay::displayFrame()
 		if (!m_ovr_plugin.shouldQuit)
 		{
 			m_ovr_plugin.EndRender(m_cur_eye);
-#ifndef TWO_SCENE
 			m_cur_eye ^= 1;
+#ifndef TWO_SCENE
 			m_ovr_plugin.PseudoRender(m_cur_eye);
 #endif
 		}
@@ -1042,7 +1050,7 @@ void GLUTDisplay::display()
 		//fprintf(stderr, "eye:%f,%f,%f\n", ovr_eye.x, ovr_eye.y, ovr_eye.z);
 		ovr_eye -= (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) / 2;
 		//ovr_eye += (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) - OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) * 0.5;
-		if (m_cur_eye == 1) ovr_eye.x += 0.5;
+		//if (m_cur_eye == 1) ovr_eye.x += 0.5;
 		OVR::Matrix4f finalRollPitchYaw = OVR::Matrix4f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Orientation);
 		OVR::Vector3f finalUp = finalRollPitchYaw.Transform(OVR::Vector3f(0, 1, 0));
 		OVR::Vector3f finalForward = finalRollPitchYaw.Transform(OVR::Vector3f(0, 0, -1));
@@ -1061,14 +1069,15 @@ void GLUTDisplay::display()
 		m_scene->signalCameraChanged();
 
 #ifdef TWO_SCENE
+		float3 eye2, U2, V2, W2;
 		{
-			float3 eye2, U2, V2, W2;
-			m_cur_eye ^= 1;
-			OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(-0.24178f, -0.133496f, 2.43055f);
+			//m_cur_eye ^= 1;
+			OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position) + OVR::Vector3f(-0.24178f, -0.133496f, 2.43055f);
 			//fprintf(stderr, "eye:%f,%f,%f\n", ovr_eye.x, ovr_eye.y, ovr_eye.z);
 			ovr_eye -= (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) / 2;
 			//ovr_eye += (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) - OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) * 0.5;
-			OVR::Matrix4f finalRollPitchYaw = OVR::Matrix4f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Orientation);
+			//ovr_eye.x += 1.5;
+			OVR::Matrix4f finalRollPitchYaw = OVR::Matrix4f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Orientation);
 			OVR::Vector3f finalUp = finalRollPitchYaw.Transform(OVR::Vector3f(0, 1, 0));
 			OVR::Vector3f finalForward = finalRollPitchYaw.Transform(OVR::Vector3f(0, 0, -1));
 			OVR::Vector3f finalRight = finalRollPitchYaw.Transform(OVR::Vector3f(1, 0, 0));
@@ -1095,13 +1104,13 @@ void GLUTDisplay::display()
 		// because if you add a parameter it's easy to forget to add it here.
 		SampleScene::RayGenCameraData camera_data(eye, U, V, W);
 #ifdef TWO_SCENE
-		SampleScene::RayGenCameraData camera_data2(eye, U, V, W);
+		SampleScene::RayGenCameraData camera_data2(eye2, U2, V2, W2);
 #endif
 		if (m_frame_count < m_timed_frames)
 		{nvtx::ScopedRange r( "trace" );
 		m_scene->trace(camera_data);
 #ifdef TWO_SCENE
-		m_scene2->trace(camera_data);
+		m_scene2->trace(camera_data2);
 #endif
 		}
 

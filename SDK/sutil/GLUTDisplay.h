@@ -27,7 +27,7 @@
 #include <SampleScene.h>
 
 #define ENABLE_OVR_PLUGIN
-//#define TWO_SCENE
+#define TWO_SCENE
 
 #ifdef ENABLE_OVR_PLUGIN
 //#pragma comment(lib, "LibOVR.lib")

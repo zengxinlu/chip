@@ -994,7 +994,7 @@ void ProgressivePhotonScene::initBox(InitialCameraData& camera_data)
 		//make_float3( -0.5f, -0.05f, 0.25f ),      /// lookat	ÓÒ±ßºÚÏß
 		//make_float3( -0.1f, 0.2f, 0.25f ),      /// lookat
 		make_float3( 0.0f, 1.0f,  0.0f ),     /// up
-		35.0f );                              /// vfov
+		90.0f );                              /// vfov
 	m_light.is_area_light = 1; 
 /// 	m_light.position = make_float3( 0.0f, 0.1f, 0.0f );
 /// 	m_light.anchor = make_float3( 0.0f, 0.0f, 0.0f );
@@ -2220,7 +2220,7 @@ void ProgressivePhotonScene::trace( const RayGenCameraData& camera_data )
 //	std::cerr.flush();
 	sutilCurrentTime(&t0);
 	double timeStatics[3] = { 0, 0, 0 };
-	for (int iterStep = 0; iterStep < 20; ++iterStep) {
+	for (int iterStep = 0; iterStep < 1; ++iterStep) {
 
 		double tl, tr;
 		output_buffer = m_context["rtpass_output_buffer"]->getBuffer();

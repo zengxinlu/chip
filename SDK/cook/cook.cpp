@@ -555,10 +555,10 @@ void CookScene::createGeometry()
   gis.push_back( m_context->createGeometryInstance( parallelogram, &floor_matl, &floor_matl+1 ) );
 
   GeometryGroup geometrygroup = m_context->createGeometryGroup();
-  if (setup == SETUP_1984)
+ // if (setup == SETUP_1984)
     geometrygroup->setAcceleration( m_context->createAcceleration("NoAccel","NoAccel") );
-  else
-    geometrygroup->setAcceleration( m_context->createAcceleration(m_accel_desc.builder.c_str(), m_accel_desc.traverser.c_str()) );
+//  else
+  //  geometrygroup->setAcceleration( m_context->createAcceleration(m_accel_desc.builder.c_str(), m_accel_desc.traverser.c_str()) );
 
   geometrygroup->setChildCount( static_cast<unsigned int>(gis.size()) );
   
