@@ -301,8 +301,8 @@ RT_PROGRAM void globalDensity()
 	if (!chip2[4])
 	{
 		image_rnd_seeds[launch_index].z = 1;
-		for (int i = 4; i >= 0; --i)
-			if (chip2[i])
+		for (int i = 3; i >= 0; --i)
+			if (chip2[i] || v[i] / chip2_99[(i + 1) * 8 - 1] <= v[4] / chip2_99[(4 + 1) * 8 - 1])
 			{
 				new_radius2 = new_radius2 * ((i + 1.0) / 5.0);
 				for (int j = 0; j < 40; ++j)
@@ -612,7 +612,7 @@ RT_PROGRAM void causticsDensity() {
 		//direct_flux*100.f;
 		//direct_flux * 50.f + indirect_flux * 1.0f;
 	final_color = make_float3(final_color.x*mydebug[0], final_color.y*mydebug[1], final_color.z*mydebug[2]);
-// 	// 如果不成立
+// 	// 脠莽鹿没虏禄鲁脡脕垄
 // 	if (myron_ppm_valid != 1)
 // 	{
 // 		final_color = make_float3(1.0f, 0, 0);
