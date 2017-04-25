@@ -121,6 +121,7 @@ private:
 #ifdef TWO_SCENE
   static SampleScene*   m_scene2;
   static PinholeCamera* m_camera2;
+  static Mouse*         m_mouse2;
 #endif
 
   static double         m_last_frame_time;

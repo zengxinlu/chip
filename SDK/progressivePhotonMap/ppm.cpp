@@ -407,24 +407,24 @@ private:
 	string projectName;
 
 };
-  const unsigned int ProgressivePhotonScene::WIDTH  = 800u;
-  const unsigned int ProgressivePhotonScene::HEIGHT = 600u;
+//  const unsigned int ProgressivePhotonScene::WIDTH  = 800u;
+//  const unsigned int ProgressivePhotonScene::HEIGHT = 600u;
 //  const unsigned int ProgressivePhotonScene::WIDTH  = 400u;
 //  const unsigned int ProgressivePhotonScene::HEIGHT = 300u;
 /// const unsigned int ProgressivePhotonScene::WIDTH  = 1680u;
 /// const unsigned int ProgressivePhotonScene::HEIGHT = 974u;
 /// const unsigned int ProgressivePhotonScene::WIDTH  = 768u;
 /// const unsigned int ProgressivePhotonScene::HEIGHT = 768u;
-/// const unsigned int ProgressivePhotonScene::WIDTH  = 256u;
-/// const unsigned int ProgressivePhotonScene::HEIGHT = 256u;
+ const unsigned int ProgressivePhotonScene::WIDTH  = 256u;
+ const unsigned int ProgressivePhotonScene::HEIGHT = 256u;
 
 const unsigned int ProgressivePhotonScene::MAX_PHOTON_COUNT = 2u;
-//const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_WIDTH = 256u;
-//const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_HEIGHT = 256u;
+const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_WIDTH = 128;
+const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_HEIGHT = 128;
 //const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_WIDTH = 1024u;
 //const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_HEIGHT = 1024u;
-const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_WIDTH = 512u;
-const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_HEIGHT = 512u;
+//const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_WIDTH = 512u;
+//const unsigned int ProgressivePhotonScene::PHOTON_LAUNCH_HEIGHT = 512u;
 const unsigned int ProgressivePhotonScene::NUM_PHOTONS = (ProgressivePhotonScene::PHOTON_LAUNCH_WIDTH *
 	ProgressivePhotonScene::PHOTON_LAUNCH_HEIGHT *
 	ProgressivePhotonScene::MAX_PHOTON_COUNT);
@@ -569,8 +569,8 @@ void ProgressivePhotonScene::selectScene()
 //	setTestScene(ProgressivePhotonScene::Sponza_Scene);
 //	setTestScene(ProgressivePhotonScene::Small_Room_Scene);
 // 	setTestScene(ProgressivePhotonScene::Clock_Scene);
-	setTestScene(ProgressivePhotonScene::Box_Scene);
-//	setTestScene(ProgressivePhotonScene::Torus_Scene);
+//	setTestScene(ProgressivePhotonScene::Box_Scene);
+	setTestScene(ProgressivePhotonScene::Torus_Scene);
 }
 void ProgressivePhotonScene::initAssistBuffer()
 {
@@ -2220,7 +2220,7 @@ void ProgressivePhotonScene::trace( const RayGenCameraData& camera_data )
 //	std::cerr.flush();
 	sutilCurrentTime(&t0);
 	double timeStatics[3] = { 0, 0, 0 };
-	for (int iterStep = 0; iterStep < 1; ++iterStep) {
+	for (int iterStep = 0; iterStep < 10; ++iterStep) {
 
 		double tl, tr;
 		output_buffer = m_context["rtpass_output_buffer"]->getBuffer();

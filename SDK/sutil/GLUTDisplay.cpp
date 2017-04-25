@@ -64,6 +64,7 @@ Mouse*         GLUTDisplay::m_mouse                = 0;
 PinholeCamera* GLUTDisplay::m_camera               = 0;
 SampleScene*   GLUTDisplay::m_scene                = 0;
 #ifdef TWO_SCENE
+Mouse*         GLUTDisplay::m_mouse2			   = 0;
 SampleScene*   GLUTDisplay::m_scene2               = 0;
 PinholeCamera* GLUTDisplay::m_camera2			   = 0;
 #endif
@@ -467,15 +468,18 @@ void GLUTDisplay::runVR(const std::string& title, SampleScene* leftScene, Sample
 	try {
 		// Set up scene
 		SampleScene::InitialCameraData camera_data;
+		SampleScene::InitialCameraData camera_data2;
 		m_scene->initScene(camera_data);
-		m_scene2->initScene(camera_data);
+		m_scene2->initScene(camera_data2);
   		if (m_initial_window_width > 0 && m_initial_window_height > 0) {
 			m_scene->resize(m_initial_window_width, m_initial_window_height);
 			m_scene2->resize(m_initial_window_width, m_initial_window_height);
 		}
 
-		if (!m_camera_pose.empty())
+		if (!m_camera_pose.empty()) {
 			camera_data = SampleScene::InitialCameraData(m_camera_pose);
+			camera_data2 = SampleScene::InitialCameraData(m_camera_pose);
+		}
 
 		// Initialize camera according to scene params
 		m_camera = new PinholeCamera(camera_data.eye,
@@ -484,11 +488,11 @@ void GLUTDisplay::runVR(const std::string& title, SampleScene* leftScene, Sample
 			-1.0f, // hfov is ignored when using keep vertical
 			camera_data.vfov,
 			PinholeCamera::KeepVertical);
-		m_camera2 = new PinholeCamera(camera_data.eye,
-			camera_data.lookat,
-			camera_data.up,
+		m_camera2 = new PinholeCamera(camera_data2.eye,
+			camera_data2.lookat,
+			camera_data2.up,
 			-1.0f, // hfov is ignored when using keep vertical
-			camera_data.vfov,
+			camera_data2.vfov,
 			PinholeCamera::KeepVertical);
 
 		Buffer buffer = m_scene->getOutputBuffer();
@@ -497,6 +501,7 @@ void GLUTDisplay::runVR(const std::string& title, SampleScene* leftScene, Sample
 		buffer_width = static_cast<int>(buffer_width_rts);
 		buffer_height = static_cast<int>(buffer_height_rts);
 		m_mouse = new Mouse(m_camera, buffer_width, buffer_height);
+		m_mouse2 = new Mouse(m_camera2, buffer_width, buffer_height);
 	}
 	catch (Exception& e) {
 		sutilReportError(e.getErrorString().c_str());
@@ -836,10 +841,11 @@ void GLUTDisplay::resize(int width, int height)
 
 	sutilCurrentTime( &m_start_time );
 	m_scene->signalCameraChanged();
+	m_mouse->handleResize(width, height);
 #ifdef TWO_SCENE
 	m_scene2->signalCameraChanged();
+	m_mouse2->handleResize(width, height);
 #endif
-	m_mouse->handleResize( width, height );
 
 	try {
 		m_scene->resize(width, height);
@@ -1046,7 +1052,7 @@ void GLUTDisplay::display()
 		float3 eye, U, V, W;
 #ifdef ENABLE_OVR_PLUGIN
 		
-		OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(-0.24178f, -0.133496f, 2.43055f);
+		OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(0.93709, 0.068026, 1.17512);
 		//fprintf(stderr, "eye:%f,%f,%f\n", ovr_eye.x, ovr_eye.y, ovr_eye.z);
 		ovr_eye -= (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) / 2;
 		//ovr_eye += (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) - OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) * 0.5;
@@ -1063,6 +1069,7 @@ void GLUTDisplay::display()
 
 		float3 leye, lU, lV, lW;
 		m_camera->getEyeUVW(leye, lU, lV, lW);
+		//fprintf(stderr, "eye:%f,%f,%f\n", lU.x, lU.y, lU.z);
 		U *= length(lU);
 		V *= length(lV);
 		W *= length(lW);
@@ -1072,11 +1079,11 @@ void GLUTDisplay::display()
 		float3 eye2, U2, V2, W2;
 		{
 			//m_cur_eye ^= 1;
-			OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position) + OVR::Vector3f(-0.24178f, -0.133496f, 2.43055f);
+			OVR::Vector3f ovr_eye = OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position) + OVR::Vector3f(0.93709, 0.068026, 1.17512);
 			//fprintf(stderr, "eye:%f,%f,%f\n", ovr_eye.x, ovr_eye.y, ovr_eye.z);
 			ovr_eye -= (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) + OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) / 2;
 			//ovr_eye += (OVR::Vector3f(m_ovr_plugin.EyeRenderPose[m_cur_eye].Position) - OVR::Vector3f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Position)) * 0.5;
-			//ovr_eye.x += 1.5;
+			//ovr_eye.x += 0.5;
 			OVR::Matrix4f finalRollPitchYaw = OVR::Matrix4f(m_ovr_plugin.EyeRenderPose[1 ^ m_cur_eye].Orientation);
 			OVR::Vector3f finalUp = finalRollPitchYaw.Transform(OVR::Vector3f(0, 1, 0));
 			OVR::Vector3f finalForward = finalRollPitchYaw.Transform(OVR::Vector3f(0, 0, -1));
@@ -1086,9 +1093,9 @@ void GLUTDisplay::display()
 			memcpy(&U2, &finalRight, sizeof(float3));
 			memcpy(&V2, &finalUp, sizeof(float3));
 			memcpy(&W2, &finalForward, sizeof(float3));
-
 			float3 Reye, RU, RV, RW;
 			m_camera2->getEyeUVW(Reye, RU, RV, RW);
+			//fprintf(stderr, "eye:%f,%f,%f\n", RU.x, RU.y, RU.z);
 			U2 *= length(RU);
 			V2 *= length(RV);
 			W2 *= length(RW);
